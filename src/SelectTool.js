@@ -45,7 +45,7 @@ export default class SelectTool {
 
   _movePoint(x, y) {
     const {curve, index} = this._point;
-    curve.setControlPoint(index, {x, y, z: 0});
+    curve.setControlPoint(index, {x, y, z: 0, w: 1});
     void this._onChange?.();
   }
 

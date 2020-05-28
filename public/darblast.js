@@ -90,6 +90,26 @@ var Darblast;
                 return null;
             }
         }
+        *_enumerateKeys(node) {
+            if (node) {
+                yield* this._enumerateKeys(node.left);
+                yield node.key;
+                yield* this._enumerateKeys(node.right);
+            }
+        }
+        get keys() {
+            return this._enumerateKeys(this._root);
+        }
+        *_enumerateValues(node) {
+            if (node) {
+                yield* this._enumerateValues(node.left);
+                yield node.value;
+                yield* this._enumerateValues(node.right);
+            }
+        }
+        get values() {
+            return this._enumerateValues(this._root);
+        }
         lookup(key) {
             let node = this._root;
             while (node) {
@@ -248,6 +268,22 @@ var Darblast;
             const result = new AVL(this._compare);
             result._root = this._clone(this._root);
             result._size = this._size;
+            return result;
+        }
+        map(predicate, scope = null) {
+            const result = new AVL(this._compare);
+            for (const [key, value] of this) {
+                result.insert(key, predicate.call(scope, key, value));
+            }
+            return result;
+        }
+        filter(predicate, scope = null) {
+            const result = new AVL(this._compare);
+            for (const [key, value] of this) {
+                if (predicate.call(scope, key, value)) {
+                    result.insert(key, value);
+                }
+            }
             return result;
         }
         union(other) {
@@ -1122,8 +1158,10 @@ var Darblast;
             this._state = Object.create(null);
             this._handlers = Object.create(null);
             this._element = element;
-            this._element.addEventListener('keydown', this._onKeyDown.bind(this), false);
-            this._element.addEventListener('keyup', this._onKeyUp.bind(this), false);
+            this._onKeyDown = this._onKeyDown.bind(this);
+            this._onKeyUp = this._onKeyUp.bind(this);
+            this._element.addEventListener('keydown', this._onKeyDown, false);
+            this._element.addEventListener('keyup', this._onKeyUp, false);
         }
         _onKeyDown(event) {
             var _a, _b;
@@ -1146,6 +1184,13 @@ var Darblast;
         off(key) {
             delete this._handlers[key];
             return this;
+        }
+        destroy() {
+            this._element.removeEventListener('keydown', this._onKeyDown, false);
+            this._element.removeEventListener('keyup', this._onKeyUp, false);
+            for (const key in this._handlers) {
+                delete this._handlers[key];
+            }
         }
     }
     Darblast.Keyboard = Keyboard;
@@ -1286,9 +1331,12 @@ var Darblast;
                 this._x = 0;
                 this._y = 0;
                 this._element = element;
-                element.addEventListener('mousedown', this._onDown.bind(this), false);
-                element.addEventListener('mouseup', this._onUp.bind(this), false);
-                element.addEventListener('mousemove', this._onMove.bind(this), false);
+                this._onDown = this._onDown.bind(this);
+                this._onUp = this._onUp.bind(this);
+                this._onMove = this._onMove.bind(this);
+                element.addEventListener('mousedown', this._onDown, false);
+                element.addEventListener('mouseup', this._onUp, false);
+                element.addEventListener('mousemove', this._onMove, false);
             }
             _onDown(event) {
                 var _a, _b;
@@ -1332,6 +1380,16 @@ var Darblast;
             onMove(handler) {
                 this._moveHandler = handler;
                 return this;
+            }
+            destroy() {
+                this._element.removeEventListener('mousedown', this._onDown, false);
+                this._element.removeEventListener('mouseup', this._onUp, false);
+                this._element.removeEventListener('mousemove', this._onMove, false);
+                Mouse._BUTTONS.forEach(button => {
+                    delete this._downHandlers[button];
+                    delete this._upHandlers[button];
+                }, this);
+                this._moveHandler = null;
             }
         }
         Mouse._BUTTONS = [
@@ -1467,7 +1525,7 @@ var Darblast;
                 const n = this._controlPoints.length - 1;
                 return m - n - 1;
             }
-            get isStrict() {
+            isStrict() {
                 const p = this.degree + 1;
                 if (this._multiplicity.length < p * 2) {
                     return false;

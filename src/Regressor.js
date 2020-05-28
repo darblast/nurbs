@@ -12,7 +12,6 @@ export default class Regressor {
   }
 
   run(iterations) {
-    debugger;
     const [min, max] = this._c0.domain;
     const p = this._c0.degree;
     const u = Array.from(

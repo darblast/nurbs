@@ -58,7 +58,7 @@ export default function ({curve, onChange}) {
                   custom
                   type="switch"
                   label=""
-                  checked={curve.isStrict}
+                  checked={curve.isStrict()}
                   onChange={() => {}}/>
               </Col>
             </Form.Group>
