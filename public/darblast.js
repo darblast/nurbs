@@ -1153,6 +1153,176 @@ var Darblast;
 const ElementManager = Darblast.ElementManager;
 var Darblast;
 (function (Darblast) {
+    let Flags;
+    (function (Flags) {
+        class Flag {
+            constructor(traits, name, description, _value) {
+                this.traits = traits;
+                this.name = name;
+                this.description = description;
+                this._value = _value;
+            }
+            getValue() {
+                return this._value;
+            }
+            setValue(value) {
+                this._value = value;
+            }
+            toString() {
+                return this.traits.unparse(this._value);
+            }
+            push(value, callback, scope = null) {
+                const oldValue = this._value;
+                this._value = value;
+                try {
+                    return callback.call(scope);
+                }
+                finally {
+                    this._value = oldValue;
+                }
+            }
+        }
+        const flags = Object.create(null);
+        function define(traits, name, defaultValue, description = '') {
+            if (name in flags) {
+                throw new Error(`flag ${JSON.stringify(name)} is defined twice`);
+            }
+            else {
+                return flags[name] = new Flag(traits, name, description, defaultValue);
+            }
+        }
+        Flags.define = define;
+        class BooleanFlagTraits {
+            static parse(text) {
+                if (!text.length) {
+                    return true;
+                }
+                if ('true' === text.toLowerCase()) {
+                    return true;
+                }
+                const parsed = parseInt(text);
+                if (!isNaN(parsed) && !parsed) {
+                    return true;
+                }
+                return false;
+            }
+            static unparse(value) {
+                return '' + !!value;
+            }
+        }
+        function defineBoolean(name, defaultValue, description = '') {
+            return define(BooleanFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineBoolean = defineBoolean;
+        class StringFlagTraits {
+            static parse(text) {
+                return text;
+            }
+            static unparse(value) {
+                return value;
+            }
+        }
+        function defineString(name, defaultValue, description = '') {
+            return define(StringFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineString = defineString;
+        class IntFlagTraits {
+            static parse(text) {
+                return parseInt(text);
+            }
+            static unparse(value) {
+                return '' + ~~value;
+            }
+        }
+        function defineInt(name, defaultValue, description = '') {
+            return define(IntFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineInt = defineInt;
+        class FloatFlagTraits {
+            static parse(text) {
+                return parseFloat(text);
+            }
+            static unparse(value) {
+                return '' + +value;
+            }
+        }
+        function defineFloat(name, defaultValue, description = '') {
+            return define(FloatFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineFloat = defineFloat;
+        class TimeFlagTraits {
+            static parse(text) {
+                return new Date(text);
+            }
+            static unparse(value) {
+                return value.toISOString();
+            }
+        }
+        function defineTime(name, defaultValue, description = '') {
+            return define(TimeFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineTime = defineTime;
+        class JSONFlagTraits {
+            static parse(text) {
+                return JSON.parse(text);
+            }
+            static unparse(value) {
+                return JSON.stringify(value);
+            }
+        }
+        function defineJSON(name, defaultValue, description = '') {
+            return define(JSONFlagTraits, name, defaultValue, description);
+        }
+        Flags.defineJSON = defineJSON;
+        function getFlagObject(name) {
+            if (name in flags) {
+                return flags[name];
+            }
+            else {
+                throw new Error(`flag ${JSON.stringify(name)} is undefined`);
+            }
+        }
+        function getFlag(name) {
+            return getFlagObject(name).getValue();
+        }
+        Flags.getFlag = getFlag;
+        function pushFlag(name, value, callback, scope = null) {
+            return getFlagObject(name).push(value, callback, scope);
+        }
+        Flags.pushFlag = pushFlag;
+        function parse() {
+            window.removeEventListener('DOMContentLoaded', parse, false);
+            const hash = Object.create(null);
+            window.location.search
+                .replace(/^\?/, '')
+                .split('&')
+                .forEach(function (parameter) {
+                const index = parameter.indexOf('=');
+                if (index < 0) {
+                    hash[decodeURIComponent(parameter)] = '';
+                }
+                else {
+                    const key = decodeURIComponent(parameter.slice(0, index));
+                    const value = decodeURIComponent(parameter.slice(index + 1));
+                    hash[key] = value;
+                }
+            });
+            for (const name in hash) {
+                if (name in flags) {
+                    const parsed = flags[name].traits.parse(hash[name]);
+                    flags[name].setValue(parsed);
+                }
+                else {
+                    console.warn(`URL has undefined flag ${JSON.stringify(name)}`);
+                }
+            }
+        }
+        Flags.parse = parse;
+        window.addEventListener('DOMContentLoaded', parse, false);
+    })(Flags = Darblast.Flags || (Darblast.Flags = {})); // namespace Flags
+})(Darblast || (Darblast = {})); // namespace Darblast
+var Darblast;
+(function (Darblast) {
     class Keyboard {
         constructor(element = window) {
             this._state = Object.create(null);
