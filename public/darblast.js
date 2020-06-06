@@ -9,386 +9,6 @@
 }(this, function() {
 var Darblast;
 (function (Darblast) {
-    class Node {
-        constructor(key, value) {
-            this.height = 1;
-            this.left = null;
-            this.right = null;
-            this.key = key;
-            this.value = value;
-        }
-    }
-    class AVL {
-        constructor(compare = AVL.defaultCompare) {
-            this._root = null;
-            this._size = 0;
-            this._compare = compare;
-        }
-        static defaultCompare(first, second) {
-            if (first < second) {
-                return -1;
-            }
-            else if (first > second) {
-                return 1;
-            }
-            else {
-                return 0;
-            }
-        }
-        static from(elements, compare = AVL.defaultCompare) {
-            const avl = new AVL(compare);
-            for (const [key, value] of elements) {
-                avl.insert(key, value);
-            }
-            return avl;
-        }
-        static setFrom(elements, compare = AVL.defaultCompare) {
-            const avl = new AVL(compare);
-            for (const element of elements) {
-                avl.insert(element, true);
-            }
-            return avl;
-        }
-        get size() {
-            return this._size;
-        }
-        get isEmpty() {
-            return !this._root;
-        }
-        _getHeight(node) {
-            if (node) {
-                return node.height;
-            }
-            else {
-                return 0;
-            }
-        }
-        get height() {
-            return this._getHeight(this._root);
-        }
-        getMinimum() {
-            let node = this._root;
-            while (node && node.left) {
-                node = node.left;
-            }
-            if (node) {
-                return [node.key, node.value];
-            }
-            else {
-                return null;
-            }
-        }
-        getMaximum() {
-            let node = this._root;
-            while (node && node.right) {
-                node = node.right;
-            }
-            if (node) {
-                return [node.key, node.value];
-            }
-            else {
-                return null;
-            }
-        }
-        *_enumerateKeys(node) {
-            if (node) {
-                yield* this._enumerateKeys(node.left);
-                yield node.key;
-                yield* this._enumerateKeys(node.right);
-            }
-        }
-        get keys() {
-            return this._enumerateKeys(this._root);
-        }
-        *_enumerateValues(node) {
-            if (node) {
-                yield* this._enumerateValues(node.left);
-                yield node.value;
-                yield* this._enumerateValues(node.right);
-            }
-        }
-        get values() {
-            return this._enumerateValues(this._root);
-        }
-        lookup(key) {
-            let node = this._root;
-            while (node) {
-                const cmp = this._compare(key, node.key);
-                if (cmp < 0) {
-                    node = node.left;
-                }
-                else if (cmp > 0) {
-                    node = node.right;
-                }
-                else {
-                    return node.value;
-                }
-            }
-            return null;
-        }
-        contains(key) {
-            let node = this._root;
-            while (node) {
-                const cmp = this._compare(key, node.key);
-                if (cmp < 0) {
-                    node = node.left;
-                }
-                else if (cmp > 0) {
-                    node = node.right;
-                }
-                else {
-                    return true;
-                }
-            }
-            return false;
-        }
-        *_scan(node, lowerBound, upperBound) {
-            if (node) {
-                const cmpLower = lowerBound ? this._compare(node.key, lowerBound) : 1;
-                const cmpUpper = upperBound ? this._compare(node.key, upperBound) : -1;
-                if (cmpLower < 0) {
-                    yield* this._scan(node.right, lowerBound, upperBound);
-                }
-                else if (cmpUpper >= 0) {
-                    yield* this._scan(node.left, lowerBound, upperBound);
-                }
-                else {
-                    yield* this._scan(node.left, lowerBound, null);
-                    yield [node.key, node.value];
-                    yield* this._scan(node.right, null, upperBound);
-                }
-            }
-        }
-        scan(lowerBound = null, upperBound = null) {
-            return this._scan(this._root, lowerBound, upperBound);
-        }
-        [Symbol.iterator]() {
-            return this.scan(null, null);
-        }
-        _updateHeight(node) {
-            node.height = 1 + Math.max(this._getHeight(node.left), this._getHeight(node.right));
-        }
-        _rebalanceHeavyLeft(root) {
-            if (this._getHeight(root.left) > this._getHeight(root.right) + 1) {
-                const left = root.left;
-                root.left = left.right;
-                left.right = root;
-                this._updateHeight(root);
-                this._updateHeight(left);
-                return left;
-            }
-            else {
-                this._updateHeight(root);
-                return root;
-            }
-        }
-        _rebalanceHeavyRight(root) {
-            if (this._getHeight(root.right) > this._getHeight(root.left) + 1) {
-                const right = root.right;
-                root.right = right.left;
-                right.left = root;
-                this._updateHeight(root);
-                this._updateHeight(right);
-                return right;
-            }
-            else {
-                this._updateHeight(root);
-                return root;
-            }
-        }
-        _insert(node, key, value) {
-            if (node) {
-                const cmp = this._compare(key, node.key);
-                if (cmp < 0) {
-                    node.left = this._insert(node.left, key, value);
-                    return this._rebalanceHeavyLeft(node);
-                }
-                else if (cmp > 0) {
-                    node.right = this._insert(node.right, key, value);
-                    return this._rebalanceHeavyRight(node);
-                }
-                else {
-                    node.value = value;
-                    return node;
-                }
-            }
-            else {
-                this._size++;
-                return new Node(key, value);
-            }
-        }
-        insert(key, value) {
-            this._root = this._insert(this._root, key, value);
-        }
-        insertAll(elements) {
-            for (const [key, value] of elements) {
-                this.insert(key, value);
-            }
-        }
-        _remove(node, key) {
-            if (node) {
-                const cmp = this._compare(key, node.key);
-                if (cmp < 0) {
-                    node.left = this._remove(node.left, key);
-                    return this._rebalanceHeavyRight(node);
-                }
-                else if (cmp > 0) {
-                    node.right = this._remove(node.right, key);
-                    return this._rebalanceHeavyLeft(node);
-                }
-                else {
-                    this._size--;
-                    return null;
-                }
-            }
-            else {
-                return null;
-            }
-        }
-        remove(key) {
-            this._root = this._remove(this._root, key);
-        }
-        clear() {
-            this._root = null;
-            this._size = 0;
-        }
-        _clone(node) {
-            if (node) {
-                const result = new Node(node.key, node.value);
-                result.left = this._clone(node.left);
-                result.right = this._clone(node.right);
-                result.height = node.height;
-                return result;
-            }
-            else {
-                return null;
-            }
-        }
-        clone() {
-            const result = new AVL(this._compare);
-            result._root = this._clone(this._root);
-            result._size = this._size;
-            return result;
-        }
-        map(predicate, scope = null) {
-            const result = new AVL(this._compare);
-            for (const [key, value] of this) {
-                result.insert(key, predicate.call(scope, key, value));
-            }
-            return result;
-        }
-        filter(predicate, scope = null) {
-            const result = new AVL(this._compare);
-            for (const [key, value] of this) {
-                if (predicate.call(scope, key, value)) {
-                    result.insert(key, value);
-                }
-            }
-            return result;
-        }
-        union(other) {
-            const result = this.clone();
-            result.insertAll(other);
-            return result;
-        }
-        intersection(other) {
-            const result = new AVL(this._compare);
-            if (other.isEmpty) {
-                return result;
-            }
-            const [min] = other.getMinimum();
-            const it1 = this.scan(min);
-            const it2 = other[Symbol.iterator]();
-            let element1 = it1.next();
-            let element2 = it2.next();
-            while (!element1.done && !element2.done) {
-                const [key1, value1] = element1.value;
-                const [key2, value2] = element2.value;
-                const cmp = this._compare(key1, key2);
-                if (!cmp) {
-                    result.insert(key1, value1);
-                }
-                if (cmp <= 0) {
-                    element1 = it1.next();
-                }
-                if (cmp >= 0) {
-                    element2 = it2.next();
-                }
-            }
-            return result;
-        }
-        difference(other) {
-            const result = new AVL(this._compare);
-            const it1 = this[Symbol.iterator]();
-            const it2 = other[Symbol.iterator]();
-            let element1 = it1.next();
-            let element2 = it2.next();
-            while (!element1.done) {
-                const [key1, value] = element1.value;
-                if (element2.done) {
-                    result.insert(key1, value);
-                    element1 = it1.next();
-                }
-                else {
-                    const [key2] = element2.value;
-                    const cmp = this._compare(key1, key2);
-                    if (cmp < 0) {
-                        result.insert(key1, value);
-                        element1 = it1.next();
-                    }
-                    else if (cmp > 0) {
-                        element2 = it2.next();
-                    }
-                    else {
-                        element1 = it1.next();
-                        element2 = it2.next();
-                    }
-                }
-            }
-            return result;
-        }
-        symmetricDifference(other) {
-            const result = new AVL(this._compare);
-            const it1 = this[Symbol.iterator]();
-            const it2 = other[Symbol.iterator]();
-            let element1 = it1.next();
-            let element2 = it2.next();
-            while (!element1.done) {
-                const [key1, value1] = element1.value;
-                if (element2.done) {
-                    result.insert(key1, value1);
-                    element1 = it1.next();
-                }
-                else {
-                    const [key2, value2] = element2.value;
-                    const cmp = this._compare(key1, key2);
-                    if (cmp < 0) {
-                        result.insert(key1, value1);
-                        element1 = it1.next();
-                    }
-                    else if (cmp > 0) {
-                        result.insert(key2, value2);
-                        element2 = it2.next();
-                    }
-                    else {
-                        element1 = it1.next();
-                        element2 = it2.next();
-                    }
-                }
-            }
-            while (!element2.done) {
-                const [key2, value2] = element2.value;
-                result.insert(key2, value2);
-                element2 = it2.next();
-            }
-            return result;
-        }
-    }
-    Darblast.AVL = AVL;
-})(Darblast || (Darblast = {})); // namespace Darblast
-const AVL = Darblast.AVL;
-var Darblast;
-(function (Darblast) {
     class Frame {
         constructor(source, width, height) {
             this.source = source;
@@ -490,71 +110,746 @@ var Darblast;
     Darblast.Character = Character;
 })(Darblast || (Darblast = {})); // namespace Darblast
 const Character = Darblast.Character;
+var Darblast;
+(function (Darblast) {
+    let Collections;
+    (function (Collections) {
+        class Node {
+            constructor(key, value) {
+                this.height = 1;
+                this.left = null;
+                this.right = null;
+                this.key = key;
+                this.value = value;
+            }
+        }
+        class OrderedMap {
+            constructor(compare = OrderedMap.defaultCompare) {
+                this._root = null;
+                this._size = 0;
+                this._compare = compare;
+            }
+            static defaultCompare(first, second) {
+                if (first < second) {
+                    return -1;
+                }
+                else if (first > second) {
+                    return 1;
+                }
+                else {
+                    return 0;
+                }
+            }
+            static from(elements, compare = OrderedMap.defaultCompare) {
+                const map = new OrderedMap(compare);
+                for (const [key, value] of elements) {
+                    map.insert(key, value);
+                }
+                return map;
+            }
+            get size() {
+                return this._size;
+            }
+            get isEmpty() {
+                return !this._root;
+            }
+            _getHeight(node) {
+                if (node) {
+                    return node.height;
+                }
+                else {
+                    return 0;
+                }
+            }
+            get height() {
+                return this._getHeight(this._root);
+            }
+            getMinimum() {
+                let node = this._root;
+                while (node && node.left) {
+                    node = node.left;
+                }
+                if (node) {
+                    return [node.key, node.value];
+                }
+                else {
+                    return null;
+                }
+            }
+            getMaximum() {
+                let node = this._root;
+                while (node && node.right) {
+                    node = node.right;
+                }
+                if (node) {
+                    return [node.key, node.value];
+                }
+                else {
+                    return null;
+                }
+            }
+            *_enumerateKeys(node) {
+                if (node) {
+                    yield* this._enumerateKeys(node.left);
+                    yield node.key;
+                    yield* this._enumerateKeys(node.right);
+                }
+            }
+            get keys() {
+                return this._enumerateKeys(this._root);
+            }
+            *_enumerateValues(node) {
+                if (node) {
+                    yield* this._enumerateValues(node.left);
+                    yield node.value;
+                    yield* this._enumerateValues(node.right);
+                }
+            }
+            get values() {
+                return this._enumerateValues(this._root);
+            }
+            lookup(key) {
+                let node = this._root;
+                while (node) {
+                    const cmp = this._compare(key, node.key);
+                    if (cmp < 0) {
+                        node = node.left;
+                    }
+                    else if (cmp > 0) {
+                        node = node.right;
+                    }
+                    else {
+                        return [node.key, node.value];
+                    }
+                }
+                return null;
+            }
+            lookupValue(key) {
+                let node = this._root;
+                while (node) {
+                    const cmp = this._compare(key, node.key);
+                    if (cmp < 0) {
+                        node = node.left;
+                    }
+                    else if (cmp > 0) {
+                        node = node.right;
+                    }
+                    else {
+                        return node.value;
+                    }
+                }
+                return null;
+            }
+            contains(key) {
+                let node = this._root;
+                while (node) {
+                    const cmp = this._compare(key, node.key);
+                    if (cmp < 0) {
+                        node = node.left;
+                    }
+                    else if (cmp > 0) {
+                        node = node.right;
+                    }
+                    else {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            *_scan(node, lowerBound, upperBound) {
+                if (node) {
+                    const cmpLower = lowerBound ? this._compare(node.key, lowerBound) : 1;
+                    const cmpUpper = upperBound ? this._compare(node.key, upperBound) : -1;
+                    if (cmpLower < 0) {
+                        yield* this._scan(node.right, lowerBound, upperBound);
+                    }
+                    else if (cmpUpper >= 0) {
+                        yield* this._scan(node.left, lowerBound, upperBound);
+                    }
+                    else {
+                        yield* this._scan(node.left, lowerBound, null);
+                        yield [node.key, node.value];
+                        yield* this._scan(node.right, null, upperBound);
+                    }
+                }
+            }
+            scan(lowerBound = null, upperBound = null) {
+                return this._scan(this._root, lowerBound, upperBound);
+            }
+            [Symbol.iterator]() {
+                return this.scan(null, null);
+            }
+            _updateHeight(node) {
+                node.height = 1 + Math.max(this._getHeight(node.left), this._getHeight(node.right));
+            }
+            _rebalanceHeavyLeft(root) {
+                if (this._getHeight(root.left) > this._getHeight(root.right) + 1) {
+                    const left = root.left;
+                    root.left = left.right;
+                    left.right = root;
+                    this._updateHeight(root);
+                    this._updateHeight(left);
+                    return left;
+                }
+                else {
+                    this._updateHeight(root);
+                    return root;
+                }
+            }
+            _rebalanceHeavyRight(root) {
+                if (this._getHeight(root.right) > this._getHeight(root.left) + 1) {
+                    const right = root.right;
+                    root.right = right.left;
+                    right.left = root;
+                    this._updateHeight(root);
+                    this._updateHeight(right);
+                    return right;
+                }
+                else {
+                    this._updateHeight(root);
+                    return root;
+                }
+            }
+            _insert(node, key, value) {
+                if (node) {
+                    const cmp = this._compare(key, node.key);
+                    if (cmp < 0) {
+                        node.left = this._insert(node.left, key, value);
+                        return this._rebalanceHeavyLeft(node);
+                    }
+                    else if (cmp > 0) {
+                        node.right = this._insert(node.right, key, value);
+                        return this._rebalanceHeavyRight(node);
+                    }
+                    else {
+                        node.value = value;
+                        return node;
+                    }
+                }
+                else {
+                    this._size++;
+                    return new Node(key, value);
+                }
+            }
+            insert(key, value) {
+                this._root = this._insert(this._root, key, value);
+            }
+            insertAll(elements) {
+                for (const [key, value] of elements) {
+                    this.insert(key, value);
+                }
+            }
+            _remove(node, key) {
+                if (node) {
+                    const cmp = this._compare(key, node.key);
+                    if (cmp < 0) {
+                        node.left = this._remove(node.left, key);
+                        return this._rebalanceHeavyRight(node);
+                    }
+                    else if (cmp > 0) {
+                        node.right = this._remove(node.right, key);
+                        return this._rebalanceHeavyLeft(node);
+                    }
+                    else {
+                        this._size--;
+                        return null;
+                    }
+                }
+                else {
+                    return null;
+                }
+            }
+            remove(key) {
+                this._root = this._remove(this._root, key);
+            }
+            removeAll(keys) {
+                for (const key of keys) {
+                    this.remove(key);
+                }
+            }
+            removeIf(predicate, scope = null) {
+                [...this.keys].forEach(key => {
+                    if (predicate.call(scope, key)) {
+                        this.remove(key);
+                    }
+                }, this);
+            }
+            clear() {
+                this._root = null;
+                this._size = 0;
+            }
+            _clone(node) {
+                if (node) {
+                    const result = new Node(node.key, node.value);
+                    result.left = this._clone(node.left);
+                    result.right = this._clone(node.right);
+                    result.height = node.height;
+                    return result;
+                }
+                else {
+                    return null;
+                }
+            }
+            clone() {
+                const result = new OrderedMap(this._compare);
+                result._root = this._clone(this._root);
+                result._size = this._size;
+                return result;
+            }
+            // NOTE: this is for internal usage only. We won't expose it to client code
+            // due to its caveats (the two swapped maps need to have the same comparison
+            // function).
+            INTERNAL_swap(other) {
+                const tempRoot = this._root;
+                this._root = other._root;
+                other._root = tempRoot;
+                const tempSize = this._size;
+                this._size = other._size;
+                other._size = tempSize;
+            }
+            map(predicate, scope = null) {
+                const result = new OrderedMap(this._compare);
+                for (const [key, value] of this) {
+                    result.insert(key, predicate.call(scope, key, value));
+                }
+                return result;
+            }
+            filter(predicate, scope = null) {
+                const result = new OrderedMap(this._compare);
+                for (const [key, value] of this) {
+                    if (predicate.call(scope, key, value)) {
+                        result.insert(key, value);
+                    }
+                }
+                return result;
+            }
+        }
+        Collections.OrderedMap = OrderedMap;
+    })(Collections = Darblast.Collections || (Darblast.Collections = {})); // namespace Collections
+})(Darblast || (Darblast = {})); // namespace Darblast
+const OrderedMap = Darblast.Collections.OrderedMap;
+/// <reference path="OrderedMap.ts"/>
+var Darblast;
+(function (Darblast) {
+    let Collections;
+    (function (Collections) {
+        class OrderedSet {
+            constructor(compare = OrderedSet.defaultCompare) {
+                this._map = new Collections.OrderedMap(compare);
+            }
+            static defaultCompare(first, second) {
+                if (first < second) {
+                    return -1;
+                }
+                else if (first > second) {
+                    return 1;
+                }
+                else {
+                    return 0;
+                }
+            }
+            static from(elements, compare = OrderedSet.defaultCompare) {
+                const set = new OrderedSet(compare);
+                for (const element of elements) {
+                    set.insert(element);
+                }
+                return set;
+            }
+            get size() {
+                return this._map.size;
+            }
+            get isEmpty() {
+                return this._map.isEmpty;
+            }
+            get height() {
+                return this._map.height;
+            }
+            getMinimum() {
+                const min = this._map.getMinimum();
+                if (min) {
+                    const [key] = min;
+                    return key;
+                }
+                else {
+                    return null;
+                }
+            }
+            getMaximum() {
+                const max = this._map.getMaximum();
+                if (max) {
+                    const [key] = max;
+                    return key;
+                }
+                else {
+                    return null;
+                }
+            }
+            contains(element) {
+                return this._map.contains(element);
+            }
+            *scan(lowerBound = null, upperBound = null) {
+                // TODO: instead of extracting the keys maybe we should provide a method to
+                // scan the keys with lower and upper bounds in an OrderedMap. That way we
+                // avoid constructing an object for every enumerated element (the array
+                // containing the key-value pair).
+                for (const [key] of this._map.scan(lowerBound, upperBound)) {
+                    yield key;
+                }
+            }
+            [Symbol.iterator]() {
+                return this.scan(null, null);
+            }
+            insert(element) {
+                this._map.insert(element, true);
+            }
+            insertAll(elements) {
+                for (const element of elements) {
+                    this._map.insert(element, true);
+                }
+            }
+            remove(element) {
+                this._map.remove(element);
+            }
+            removeAll(elements) {
+                this._map.removeAll(elements);
+            }
+            removeIf(predicate, scope = null) {
+                this._map.removeIf(predicate, scope);
+            }
+            clear() {
+                this._map.clear();
+            }
+            clone() {
+                const result = new OrderedSet(this._compare);
+                result._map.INTERNAL_swap(this._map.clone());
+                return result;
+            }
+            map(predicate, scope = null) {
+                // NOTE: this method only works if defaultCompare is okay for the Output
+                // type.
+                const result = new OrderedSet(OrderedSet.defaultCompare);
+                for (const element of this) {
+                    result.insert(predicate.call(scope, element));
+                }
+                return result;
+            }
+            filter(predicate, scope = null) {
+                const result = new OrderedSet(this._compare);
+                for (const element of this) {
+                    if (predicate.call(scope, element)) {
+                        result.insert(element);
+                    }
+                }
+                return result;
+            }
+            union(other) {
+                const result = this.clone();
+                result.insertAll(other);
+                return result;
+            }
+            intersection(other) {
+                const result = new OrderedSet(this._compare);
+                if (other.isEmpty) {
+                    return result;
+                }
+                const min = other.getMinimum();
+                const it1 = this.scan(min);
+                const it2 = other[Symbol.iterator]();
+                let element1 = it1.next();
+                let element2 = it2.next();
+                while (!element1.done && !element2.done) {
+                    const value1 = element1.value;
+                    const value2 = element2.value;
+                    const cmp = this._compare(value1, value2);
+                    if (!cmp) {
+                        result.insert(value1);
+                    }
+                    if (cmp <= 0) {
+                        element1 = it1.next();
+                    }
+                    if (cmp >= 0) {
+                        element2 = it2.next();
+                    }
+                }
+                return result;
+            }
+            difference(other) {
+                const result = new OrderedSet(this._compare);
+                const it1 = this[Symbol.iterator]();
+                const it2 = other[Symbol.iterator]();
+                let element1 = it1.next();
+                let element2 = it2.next();
+                while (!element1.done) {
+                    const value1 = element1.value;
+                    if (element2.done) {
+                        result.insert(value1);
+                        element1 = it1.next();
+                    }
+                    else {
+                        const value2 = element2.value;
+                        const cmp = this._compare(value1, value2);
+                        if (cmp < 0) {
+                            result.insert(value1);
+                            element1 = it1.next();
+                        }
+                        else if (cmp > 0) {
+                            element2 = it2.next();
+                        }
+                        else {
+                            element1 = it1.next();
+                            element2 = it2.next();
+                        }
+                    }
+                }
+                return result;
+            }
+            symmetricDifference(other) {
+                const result = new OrderedSet(this._compare);
+                const it1 = this[Symbol.iterator]();
+                const it2 = other[Symbol.iterator]();
+                let element1 = it1.next();
+                let element2 = it2.next();
+                while (!element1.done) {
+                    const value1 = element1.value;
+                    if (element2.done) {
+                        result.insert(value1);
+                        element1 = it1.next();
+                    }
+                    else {
+                        const value2 = element2.value;
+                        const cmp = this._compare(value1, value2);
+                        if (cmp < 0) {
+                            result.insert(value1);
+                            element1 = it1.next();
+                        }
+                        else if (cmp > 0) {
+                            result.insert(value2);
+                            element2 = it2.next();
+                        }
+                        else {
+                            element1 = it1.next();
+                            element2 = it2.next();
+                        }
+                    }
+                }
+                while (!element2.done) {
+                    const value2 = element2.value;
+                    result.insert(value2);
+                    element2 = it2.next();
+                }
+                return result;
+            }
+        }
+        Collections.OrderedSet = OrderedSet;
+    })(Collections = Darblast.Collections || (Darblast.Collections = {})); // namespace Collections
+})(Darblast || (Darblast = {})); // namespace Darblast
+const OrderedSet = Darblast.Collections.OrderedSet;
+var Darblast;
+(function (Darblast) {
+    let Collections;
+    (function (Collections) {
+        class Heap {
+            constructor(compare = Heap.defaultCompare) {
+                this._data = [];
+                this._compare = compare;
+            }
+            static defaultCompare(first, second) {
+                return first < second;
+            }
+            static from(elements, compare = Heap.defaultCompare) {
+                const heap = new Heap(compare);
+                heap.pushAll(elements);
+                return heap;
+            }
+            get size() {
+                return this._data.length;
+            }
+            get isEmpty() {
+                return !this._data.length;
+            }
+            get height() {
+                return Math.ceil(Math.log2(this._data.length + 1));
+            }
+            get top() {
+                if (this._data.length) {
+                    return this._data[0];
+                }
+                else {
+                    throw new Error('empty heap');
+                }
+            }
+            _compareElements(i, j) {
+                return this._compare(this._data[i], this._data[j]);
+            }
+            _swap(i, j) {
+                const temp = this._data[i];
+                this._data[i] = this._data[j];
+                this._data[j] = temp;
+            }
+            push(element) {
+                let i = this._data.length;
+                this._data.push(element);
+                let j = Math.floor((i - 1) / 2);
+                while (i > 0 && this._compareElements(i, j)) {
+                    this._swap(i, j);
+                    i = j;
+                    j = Math.floor((i - 1) / 2);
+                }
+            }
+            pushAll(elements) {
+                for (const element of elements) {
+                    this.push(element);
+                }
+            }
+            _siftDown(i) {
+                const j = i * 2 + 1;
+                const k = i * 2 + 2;
+                if (j < this._data.length) {
+                    if (k >= this._data.length || this._compareElements(j, k)) {
+                        if (this._compareElements(j, i)) {
+                            this._swap(i, j);
+                            return j;
+                        }
+                    }
+                    else if (k < this._data.length && this._compareElements(k, i)) {
+                        this._swap(i, k);
+                        return k;
+                    }
+                }
+                return -1;
+            }
+            pop() {
+                if (this._data.length) {
+                    const element = this._data[0];
+                    this._data[0] = this._data[this._data.length - 1];
+                    this._data.length--;
+                    for (let i = 0; i >= 0; i = this._siftDown(i)) { }
+                    return element;
+                }
+                else {
+                    throw new Error('empty heap');
+                }
+            }
+            clear() {
+                this._data.length = 0;
+            }
+            clone() {
+                const result = new Heap(this._compare);
+                result._data.push.apply(result._data, this._data);
+                return result;
+            }
+        }
+        Collections.Heap = Heap;
+    })(Collections = Darblast.Collections || (Darblast.Collections = {})); // namespace Collections
+})(Darblast || (Darblast = {})); // namespace Darblast
+const Heap = Darblast.Collections.Heap;
 /// <reference path="Base.ts" />
-/// <reference path="AVL.ts" />
-class Database {
-    constructor() {
-        this._data = Object.create(null);
-    }
-    static _compare(first, second) {
-        return first - second;
-    }
-    insert(properties, element) {
-        for (const key in properties) {
-            if (properties.hasOwnProperty(key)) {
-                if (!(key in this._data)) {
-                    this._data[key] = Object.create(null);
-                }
-                const value = properties[key];
-                if (!(value in this._data[key])) {
-                    this._data[key][value] = new AVL(Database._compare);
-                }
-                this._data[key][value].insert(element.id, element);
-            }
+/// <reference path="collections/OrderedSet.ts" />
+/// <reference path="collections/Heap.ts"/>
+var Darblast;
+(function (Darblast) {
+    class Database {
+        constructor() {
+            this._data = Object.create(null);
         }
-    }
-    remove(properties) {
-        // TODO
-        throw new Error('not implemented');
-    }
-    *query(properties) {
-        const iterators = [];
-        for (const key in properties) {
-            if (properties.hasOwnProperty(key) && (key in this._data)) {
-                const value = properties[key];
-                if (value in this._data[key]) {
-                    iterators.push(this._data[key][value][Symbol.iterator]());
+        static _compare(first, second) {
+            return first.id - second.id;
+        }
+        insert(properties, element) {
+            for (const key in properties) {
+                if (properties.hasOwnProperty(key)) {
+                    if (!(key in this._data)) {
+                        this._data[key] = Object.create(null);
+                    }
+                    const value = properties[key];
+                    if (!(value in this._data[key])) {
+                        this._data[key][value] = new OrderedSet(Database._compare);
+                    }
+                    this._data[key][value].insert(element);
                 }
             }
         }
-        const result = [];
-        const items = iterators.map(it => it.next());
-        while (items.every(item => !item.done)) {
-            let minimum = null;
-            let everywhere = false;
-            for (let i = 0; i < items.length; i++) {
-                const [id, element] = items[i].value;
-                if (!minimum) {
-                    minimum = element;
-                    everywhere = true;
-                }
-                else if (id < minimum.id) {
-                    minimum = element;
-                    everywhere = false;
+        query(properties) {
+            const sets = new Heap((first, second) => first.size < second.size);
+            for (const key in properties) {
+                if (properties.hasOwnProperty(key) && (key in this._data)) {
+                    const value = properties[key];
+                    if (value in this._data[key]) {
+                        sets.push(this._data[key][value]);
+                    }
                 }
             }
-            if (everywhere) {
-                yield minimum;
+            if (sets.size > 0) {
+                const result = sets.pop();
+                while (!sets.isEmpty) {
+                    if (result.isEmpty) {
+                        return result;
+                    }
+                    const next = sets.pop();
+                    if (next.isEmpty) {
+                        return next;
+                    }
+                    result.removeAll(next);
+                }
+                return result;
             }
-            for (let i = 0; i < items.length; i++) {
-                const [id] = items[i].value;
-                if (id <= minimum.id) {
-                    items[i] = iterators[i].next();
+            else {
+                return new OrderedSet(Database._compare);
+            }
+        }
+        remove(properties) {
+            const elements = this.query(properties);
+            for (const key in properties) {
+                if (properties.hasOwnProperty(key) && key in this._data) {
+                    const value = properties[key];
+                    if (value in this._data[key]) {
+                        this._data[key][value].removeAll(elements);
+                    }
+                }
+            }
+            return [...elements];
+        }
+        *enumerate(properties) {
+            const iterators = [];
+            for (const key in properties) {
+                if (properties.hasOwnProperty(key) && (key in this._data)) {
+                    const value = properties[key];
+                    if (value in this._data[key]) {
+                        iterators.push(this._data[key][value][Symbol.iterator]());
+                    }
+                }
+            }
+            const result = [];
+            const items = iterators.map(it => it.next());
+            while (items.every(item => !item.done)) {
+                let minimum = null;
+                let everywhere = false;
+                for (let i = 0; i < items.length; i++) {
+                    const element = items[i].value;
+                    if (!minimum) {
+                        minimum = element;
+                        everywhere = true;
+                    }
+                    else if (element.id < minimum.id) {
+                        minimum = element;
+                        everywhere = false;
+                    }
+                }
+                if (everywhere) {
+                    yield minimum;
+                }
+                for (let i = 0; i < items.length; i++) {
+                    const [id] = items[i].value;
+                    if (id <= minimum.id) {
+                        items[i] = iterators[i].next();
+                    }
                 }
             }
         }
     }
-}
+    Darblast.Database = Database;
+})(Darblast || (Darblast = {})); // namespace Darblast
+const Database = Darblast.Database;
 var Darblast;
 (function (Darblast) {
     class View {
@@ -595,106 +890,10 @@ class IdGenerator {
         this._stash.push(id);
     }
 }
-var Darblast;
-(function (Darblast) {
-    class Heap {
-        constructor(compare = Heap.defaultCompare) {
-            this._data = [];
-            this._compare = compare;
-        }
-        static defaultCompare(first, second) {
-            return first < second;
-        }
-        static from(elements, compare = Heap.defaultCompare) {
-            const heap = new Heap(compare);
-            heap.pushAll(elements);
-            return heap;
-        }
-        get size() {
-            return this._data.length;
-        }
-        get isEmpty() {
-            return !this._data.length;
-        }
-        get height() {
-            return Math.ceil(Math.log2(this._data.length + 1));
-        }
-        get top() {
-            if (this._data.length) {
-                return this._data[0];
-            }
-            else {
-                throw new Error('empty heap');
-            }
-        }
-        _compareElements(i, j) {
-            return this._compare(this._data[i], this._data[j]);
-        }
-        _swap(i, j) {
-            const temp = this._data[i];
-            this._data[i] = this._data[j];
-            this._data[j] = temp;
-        }
-        push(element) {
-            let i = this._data.length;
-            this._data.push(element);
-            let j = Math.floor((i - 1) / 2);
-            while (i > 0 && this._compareElements(i, j)) {
-                this._swap(i, j);
-                i = j;
-                j = Math.floor((i - 1) / 2);
-            }
-        }
-        pushAll(elements) {
-            for (const element of elements) {
-                this.push(element);
-            }
-        }
-        _siftDown(i) {
-            const j = i * 2 + 1;
-            const k = i * 2 + 2;
-            if (j < this._data.length) {
-                if (k >= this._data.length || this._compareElements(j, k)) {
-                    if (this._compareElements(j, i)) {
-                        this._swap(i, j);
-                        return j;
-                    }
-                }
-                else if (k < this._data.length && this._compareElements(k, i)) {
-                    this._swap(i, k);
-                    return k;
-                }
-            }
-            return -1;
-        }
-        pop() {
-            if (this._data.length) {
-                const element = this._data[0];
-                this._data[0] = this._data[this._data.length - 1];
-                this._data.length--;
-                for (let i = 0; i >= 0; i = this._siftDown(i)) { }
-                return element;
-            }
-            else {
-                throw new Error('empty heap');
-            }
-        }
-        clear() {
-            this._data.length = 0;
-        }
-        clone() {
-            const result = new Heap(this._compare);
-            result._data.push.apply(result._data, this._data);
-            return result;
-        }
-    }
-    Darblast.Heap = Heap;
-})(Darblast || (Darblast = {})); // namespace Darblast
-const Heap = Darblast.Heap;
 /// <reference path="IdGenerator.ts" />
 /// <reference path="View.ts" />
 /// <reference path="Character.ts" />
-/// <reference path="Heap.ts" />
+/// <reference path="collections/Heap.ts" />
 let ElementImpl = /** @class */ (() => {
     class ElementImpl {
         constructor(tree, character, state, i, j, k) {
@@ -1121,7 +1320,7 @@ var Darblast;
 (function (Darblast) {
     class ElementManager {
         constructor(view) {
-            this._database = new Database();
+            this._database = new Darblast.Database();
             this._view = view;
             this._elements = new ElementTree(view);
         }
@@ -1183,6 +1382,7 @@ var Darblast;
             }
         }
         const flags = Object.create(null);
+        let parsed = false;
         function define(traits, name, defaultValue, description = '') {
             if (name in flags) {
                 throw new Error(`flag ${JSON.stringify(name)} is defined twice`);
@@ -1290,13 +1490,17 @@ var Darblast;
             return getFlagObject(name).push(value, callback, scope);
         }
         Flags.pushFlag = pushFlag;
-        function parse() {
-            window.removeEventListener('DOMContentLoaded', parse, false);
+        function parseInternal() {
+            if (parsed) {
+                return;
+            }
+            parsed = false;
             const hash = Object.create(null);
             window.location.search
                 .replace(/^\?/, '')
                 .split('&')
-                .forEach(function (parameter) {
+                .filter(parameter => parameter.length > 0)
+                .forEach(parameter => {
                 const index = parameter.indexOf('=');
                 if (index < 0) {
                     hash[decodeURIComponent(parameter)] = '';
@@ -1317,8 +1521,20 @@ var Darblast;
                 }
             }
         }
+        function handleContentLoaded() {
+            window.removeEventListener('DOMContentLoaded', handleContentLoaded, false);
+            parseInternal();
+        }
+        window.addEventListener('DOMContentLoaded', handleContentLoaded, false);
+        function parse() {
+            if (parsed) {
+                console.log('flags have already been parsed, will not parse again');
+            }
+            else {
+                parseInternal();
+            }
+        }
         Flags.parse = parse;
-        window.addEventListener('DOMContentLoaded', parse, false);
     })(Flags = Darblast.Flags || (Darblast.Flags = {})); // namespace Flags
 })(Darblast || (Darblast = {})); // namespace Darblast
 var Darblast;
@@ -1574,360 +1790,6 @@ var Darblast;
     Darblast.Mouse = Mouse;
 })(Darblast || (Darblast = {})); // namespace Darblast
 /// <reference path="Base.ts" />
-var Darblast;
-(function (Darblast) {
-    let NURBS;
-    (function (NURBS) {
-        class DeBoorContext {
-            constructor(knots, multiplicity, controlPoints) {
-                this._x = [];
-                this._y = [];
-                this._z = [];
-                this._w = [];
-                this._index = 0;
-                this._knots = knots;
-                this._multiplicity = multiplicity;
-                this._controlPoints = controlPoints;
-                this.reset();
-            }
-            reset() {
-                this._x.length = this._controlPoints.length;
-                this._y.length = this._controlPoints.length;
-                this._z.length = this._controlPoints.length;
-                this._w.length = this._controlPoints.length;
-                this._index = 0;
-            }
-            run(k, u) {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                const s = u > this._knots[k] ? 0 : this._multiplicity[k];
-                const h = p - s;
-                for (let i = k - s; i >= k - p; i--) {
-                    const { x, y, z, w } = this._controlPoints[i];
-                    this._x[i] = x;
-                    this._y[i] = y;
-                    this._z[i] = z;
-                    this._w[i] = w;
-                }
-                for (let r = 1; r <= h; r++) {
-                    for (let i = k - s; i >= k - p + r; i--) {
-                        const a = (u - this._knots[i]) / (this._knots[i + p - r + 1] - this._knots[i]);
-                        this._x[i] = (1 - a) * this._x[i - 1] + a * this._x[i];
-                        this._y[i] = (1 - a) * this._y[i - 1] + a * this._y[i];
-                        this._z[i] = (1 - a) * this._z[i - 1] + a * this._z[i];
-                        this._w[i] = (1 - a) * this._w[i - 1] + a * this._w[i];
-                    }
-                }
-                this._index = k - s;
-            }
-            get x() {
-                return this._x[this._index] / this._w[this._index];
-            }
-            get y() {
-                return this._y[this._index] / this._w[this._index];
-            }
-            get z() {
-                return this._z[this._index] / this._w[this._index];
-            }
-        }
-        NURBS.DeBoorContext = DeBoorContext;
-        class CurveIterator {
-            constructor(knots, multiplicity, controlPoints, resolution) {
-                this._knots = knots;
-                this._multiplicity = multiplicity;
-                this._controlPoints = controlPoints;
-                this._resolution = resolution;
-                this._deBoor = new DeBoorContext(knots, multiplicity, controlPoints);
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                this._min = this._knots[p];
-                this._max = this._knots[m - p];
-                this._k = p;
-                this._i = 0;
-            }
-            _step() {
-                const min = this._min;
-                const max = this._max;
-                const u = min + this._i++ * (max - min) / this._resolution;
-                while (u >= this._knots[this._k + 1]) {
-                    this._k++;
-                }
-                return u;
-            }
-            next() {
-                if (this._i <= this._resolution) {
-                    const u = this._step();
-                    this._deBoor.run(this._k, u);
-                    const { x, y, z } = this._deBoor;
-                    return {
-                        done: false,
-                        value: { x, y, z },
-                    };
-                }
-                else {
-                    return {
-                        done: true,
-                        value: void 0,
-                    };
-                }
-            }
-        }
-        class Curve {
-            constructor(knots, controlPoints) {
-                this._knots = [];
-                this._multiplicity = [];
-                this._controlPoints = [];
-                this.isPeriodic = false;
-                this.resolution = 100;
-                this._deBoor = new DeBoorContext(this._knots, this._multiplicity, this._controlPoints);
-                this.reset(knots, controlPoints);
-            }
-            get knotCount() {
-                return this._knots.length;
-            }
-            get controlPointCount() {
-                return this._controlPoints.length;
-            }
-            get degree() {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                return m - n - 1;
-            }
-            isStrict() {
-                const p = this.degree + 1;
-                if (this._multiplicity.length < p * 2) {
-                    return false;
-                }
-                else {
-                    const m = this._multiplicity.length - 1;
-                    for (let i = 0; i < p; i++) {
-                        if (this._multiplicity[i] !== p ||
-                            this._multiplicity[m - p] !== p) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-            _checkKnotIndex(index) {
-                if (index >= 0 && index < this._knots.length) {
-                    return index;
-                }
-                else {
-                    throw new Error(`index ${index} out of bounds [0, ${this._knots.length})`);
-                }
-            }
-            _checkControlPointIndex(index) {
-                if (index >= 0 && index < this._controlPoints.length) {
-                    return index;
-                }
-                else {
-                    throw new Error(`index ${index} out of bounds [0, ${this._controlPoints.length})`);
-                }
-            }
-            getKnot(index) {
-                return this._knots[this._checkKnotIndex(index)];
-            }
-            getKnots() {
-                return this._knots.slice();
-            }
-            getControlPoint(index) {
-                const { x, y, z, w } = this._controlPoints[this._checkControlPointIndex(index)];
-                return { x, y, z, w };
-            }
-            getControlPoints() {
-                return this._controlPoints.map(({ x, y, z, w }) => ({ x, y, z, w }));
-            }
-            setKnot(index, u) {
-                this._knots[this._checkKnotIndex(index)] = u;
-            }
-            _setKnots(knots) {
-                const min = Math.min.apply(Math, knots);
-                const max = Math.max.apply(Math, knots);
-                copyArray(this._knots, knots.map(u => (u - min) / (max - min)).sort((u, v) => u - v));
-                copyArray(this._multiplicity, this._knots.map(() => 1));
-                for (let i = 1, j = 0; i < this._knots.length; i++) {
-                    if (this._knots[i] > this._knots[i - 1]) {
-                        for (let k = j; k < i; k++) {
-                            this._multiplicity[k] = i - j;
-                        }
-                        j = i;
-                    }
-                }
-            }
-            setKnots(knots) {
-                if (knots.length <= this._controlPoints.length) {
-                    throw new Error(`a curve with ${this._controlPoints.length} controlPoints must have ` +
-                        `at least ${this._controlPoints.length + 1} knots (${knots.length} ` +
-                        `were provided)`);
-                }
-                this._setKnots(knots);
-            }
-            setControlPoint(index, point) {
-                const { x, y, z, w } = point;
-                const dest = this._controlPoints[this._checkControlPointIndex(index)];
-                dest.x = x;
-                dest.y = y;
-                dest.z = z;
-                dest.w = w;
-            }
-            _setControlPoints(controlPoints) {
-                copyArray(this._controlPoints, controlPoints.map(({ x, y, z, w }) => ({ x, y, z, w })));
-            }
-            setControlPoints(controlPoints) {
-                if (controlPoints.length >= this._knots.length) {
-                    throw new Error(`a curve with ${this._knots.length} knots can have at most ` +
-                        `${this._knots.length - 1} control points (${controlPoints.length} ` +
-                        `were provided)`);
-                }
-                this._setControlPoints(controlPoints);
-            }
-            reset(knots, controlPoints) {
-                if (controlPoints.length >= knots.length) {
-                    throw new Error(`the number of knots must be greater than the number of control ` +
-                        `points`);
-                }
-                this._setKnots(knots);
-                this._setControlPoints(controlPoints);
-            }
-            createDeBoorContext() {
-                return new DeBoorContext(this._knots, this._multiplicity, this._controlPoints);
-            }
-            _getK(u) {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                let k0 = p;
-                let k1 = m - p + 1;
-                while (k1 > k0) {
-                    const k = (k0 + k1) >>> 1;
-                    if (u < this._knots[k]) {
-                        k1 = k;
-                    }
-                    else if (u > this._knots[k]) {
-                        if (u < this._knots[k + 1]) {
-                            return k;
-                        }
-                        else {
-                            k0 = k + 1;
-                        }
-                    }
-                    else {
-                        return k;
-                    }
-                }
-                if (u >= this._knots[k0] && u < this._knots[k0 + 1]) {
-                    return k0;
-                }
-                else {
-                    return -1;
-                }
-            }
-            get domain() {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                return [this._knots[p], this._knots[m - p]];
-            }
-            sample(u) {
-                this._deBoor.reset();
-                const k = this._getK(u);
-                if (k < 0) {
-                    return null;
-                }
-                this._deBoor.run(k, u);
-                const { x, y, z } = this._deBoor;
-                return { x, y, z };
-            }
-            [Symbol.iterator]() {
-                return new CurveIterator(this._knots, this._multiplicity, this._controlPoints, this.resolution);
-            }
-            renderCurve(context) {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                const min = this._knots[p];
-                const max = this._knots[m - p];
-                this._deBoor.reset();
-                let k = p;
-                while (min >= this._knots[k + 1]) {
-                    k++;
-                }
-                this._deBoor.run(k, min);
-                {
-                    const { x, y, z } = this._deBoor;
-                    context.first(x, y, z);
-                }
-                for (let i = 1; i <= this.resolution; i++) {
-                    const u = min + i * (max - min) / this.resolution;
-                    while (u >= this._knots[k + 1]) {
-                        k++;
-                    }
-                    this._deBoor.run(k, u);
-                    {
-                        const { x, y, z } = this._deBoor;
-                        context.next(x, y, z);
-                    }
-                }
-                context.end();
-            }
-            renderPolyLine(context) {
-                {
-                    const { x, y, z, w } = this._controlPoints[0];
-                    context.first(x, y, z, w);
-                }
-                for (let i = 1; i < this._controlPoints.length; i++) {
-                    const { x, y, z, w } = this._controlPoints[i];
-                    context.next(x, y, z, w);
-                }
-                context.end();
-            }
-            clone() {
-                return new Curve(this._knots, this._controlPoints);
-            }
-            transform(matrix) {
-                const m = matrix;
-                for (let i = 0; i < this._controlPoints.length; i++) {
-                    const point = this._controlPoints[i];
-                    const { x, y, z } = point;
-                    point.x = m[0] * x + m[1] * y + m[2] * z;
-                    point.y = m[3] * x + m[4] * y + m[5] * z;
-                    point.z = m[6] * x + m[7] * y + m[8] * z;
-                }
-            }
-            translate(dx, dy, dz) {
-                for (let i = 0; i < this._controlPoints.length; i++) {
-                    const point = this._controlPoints[i];
-                    point.x += dx;
-                    point.y += dy;
-                    point.z += dz;
-                }
-            }
-            derive() {
-                const m = this._knots.length - 1;
-                const n = this._controlPoints.length - 1;
-                const p = m - n - 1;
-                const controlPoints = Array(n);
-                for (let i = 1; i < this._controlPoints.length; i++) {
-                    const a = p / (this._knots[i + p] - this._knots[i]);
-                    const { x: x0, y: y0, z: z0, w: w0 } = this._controlPoints[i - 1];
-                    const { x: x1, y: y1, z: z1, w: w1 } = this._controlPoints[i];
-                    controlPoints[i - 1] = {
-                        x: a * (x1 - x0),
-                        y: a * (y1 - y0),
-                        z: a * (z1 - z0),
-                        w: a * (w1 - w0),
-                    };
-                }
-                return new Curve(this._knots.slice(1, this._knots.length - 1), controlPoints);
-            }
-        }
-        NURBS.Curve = Curve;
-    })(NURBS = Darblast.NURBS || (Darblast.NURBS = {})); // namespace NURBS
-})(Darblast || (Darblast = {})); // namespace Darblast
-/// <reference path="Base.ts" />
 /// <reference path="LayerManager.ts" />
 var Darblast;
 (function (Darblast) {
@@ -2027,6 +1889,742 @@ var Darblast;
     }
     Darblast.Sound = Sound;
 })(Darblast || (Darblast = {})); // namespace Darblast
+/// <reference path="../Base.ts" />
+var Darblast;
+(function (Darblast) {
+    let NURBS;
+    (function (NURBS) {
+        class DeBoorContext {
+            constructor(knots, multiplicity, controlPoints) {
+                this._x = [];
+                this._y = [];
+                this._z = [];
+                this._w = [];
+                this._index = 0;
+                this._knots = knots;
+                this._multiplicity = multiplicity;
+                this._controlPoints = controlPoints;
+                this.reset();
+            }
+            reset() {
+                this._x.length = this._controlPoints.length;
+                this._y.length = this._controlPoints.length;
+                this._z.length = this._controlPoints.length;
+                this._w.length = this._controlPoints.length;
+                this._index = 0;
+            }
+            run(k, u) {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                const s = u > this._knots[k] ? 0 : this._multiplicity[k];
+                const h = p - s;
+                for (let i = k - s; i >= k - p; i--) {
+                    const { x, y, z, w } = this._controlPoints[i];
+                    this._x[i] = x;
+                    this._y[i] = y;
+                    this._z[i] = z;
+                    this._w[i] = w;
+                }
+                for (let r = 1; r <= h; r++) {
+                    for (let i = k - s; i >= k - p + r; i--) {
+                        const a = (u - this._knots[i]) / (this._knots[i + p - r + 1] - this._knots[i]);
+                        this._x[i] = (1 - a) * this._x[i - 1] + a * this._x[i];
+                        this._y[i] = (1 - a) * this._y[i - 1] + a * this._y[i];
+                        this._z[i] = (1 - a) * this._z[i - 1] + a * this._z[i];
+                        this._w[i] = (1 - a) * this._w[i - 1] + a * this._w[i];
+                    }
+                }
+                this._index = k - s;
+                return this;
+            }
+            get x() {
+                return this._x[this._index];
+            }
+            get y() {
+                return this._y[this._index];
+            }
+            get z() {
+                return this._z[this._index];
+            }
+            get w() {
+                return this._w[this._index];
+            }
+        }
+        NURBS.DeBoorContext = DeBoorContext;
+    })(NURBS = Darblast.NURBS || (Darblast.NURBS = {})); // namespace NURBS
+})(Darblast || (Darblast = {})); // namespace Darblast
+const DeBoorContext = Darblast.NURBS.DeBoorContext;
+/// <reference path="../Base.ts" />
+/// <reference path="DeBoor.ts" />
+var Darblast;
+(function (Darblast) {
+    let NURBS;
+    (function (NURBS) {
+        class CurveIterator {
+            constructor(knots, multiplicity, controlPoints, resolution) {
+                this._knots = knots;
+                this._multiplicity = multiplicity;
+                this._controlPoints = controlPoints;
+                this._resolution = resolution;
+                this._deBoor = new NURBS.DeBoorContext(knots, multiplicity, controlPoints);
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                this._min = this._knots[p];
+                this._max = this._knots[m - p];
+                this._k = p;
+                this._i = 0;
+            }
+            _step() {
+                const min = this._min;
+                const max = this._max;
+                const u = min + this._i++ * (max - min) / this._resolution;
+                while (u >= this._knots[this._k + 1]) {
+                    this._k++;
+                }
+                return u;
+            }
+            next() {
+                if (this._i <= this._resolution) {
+                    const u = this._step();
+                    const { x, y, z, w } = this._deBoor.run(this._k, u);
+                    return {
+                        done: false,
+                        value: {
+                            x: x / w,
+                            y: y / w,
+                            z: z / w,
+                        },
+                    };
+                }
+                else {
+                    return {
+                        done: true,
+                        value: void 0,
+                    };
+                }
+            }
+        }
+        class Curve {
+            constructor(knots, controlPoints) {
+                this._knots = [];
+                this._multiplicity = [];
+                this._controlPoints = [];
+                this.resolution = 100;
+                this._deBoor = new NURBS.DeBoorContext(this._knots, this._multiplicity, this._controlPoints);
+                this.reset(knots, controlPoints);
+            }
+            get knotCount() {
+                return this._knots.length;
+            }
+            get controlPointCount() {
+                return this._controlPoints.length;
+            }
+            get degree() {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                return m - n - 1;
+            }
+            isStrict() {
+                const p = this.degree + 1;
+                if (this._multiplicity.length < p * 2) {
+                    return false;
+                }
+                else {
+                    const m = this._multiplicity.length - 1;
+                    for (let i = 0; i < p; i++) {
+                        if (this._multiplicity[i] !== p ||
+                            this._multiplicity[m - p] !== p) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            _checkKnotIndex(index) {
+                if (index >= 0 && index < this._knots.length) {
+                    return index;
+                }
+                else {
+                    throw new Error(`index ${index} out of bounds [0, ${this._knots.length})`);
+                }
+            }
+            _checkControlPointIndex(index) {
+                if (index >= 0 && index < this._controlPoints.length) {
+                    return index;
+                }
+                else {
+                    throw new Error(`index ${index} out of bounds [0, ${this._controlPoints.length})`);
+                }
+            }
+            getKnot(index) {
+                return this._knots[this._checkKnotIndex(index)];
+            }
+            getKnots() {
+                return this._knots.slice();
+            }
+            getControlPoint(index) {
+                const { x, y, z, w } = this._controlPoints[this._checkControlPointIndex(index)];
+                return { x, y, z, w };
+            }
+            getControlPoints() {
+                return this._controlPoints.map(({ x, y, z, w }) => ({ x, y, z, w }));
+            }
+            setKnot(index, u) {
+                this._knots[this._checkKnotIndex(index)] = u;
+            }
+            _setKnots(knots) {
+                const min = Math.min.apply(Math, knots);
+                const max = Math.max.apply(Math, knots);
+                copyArray(this._knots, knots.map(u => (u - min) / (max - min)).sort((u, v) => u - v));
+                copyArray(this._multiplicity, this._knots.map(() => 1));
+                for (let i = 1, j = 0; i < this._knots.length; i++) {
+                    if (this._knots[i] > this._knots[i - 1]) {
+                        for (let k = j; k < i; k++) {
+                            this._multiplicity[k] = i - j;
+                        }
+                        j = i;
+                    }
+                }
+            }
+            setKnots(knots) {
+                if (knots.length <= this._controlPoints.length) {
+                    throw new Error(`a curve with ${this._controlPoints.length} control points must have ` +
+                        `at least ${this._controlPoints.length + 1} knots (${knots.length} ` +
+                        `were provided)`);
+                }
+                this._setKnots(knots);
+            }
+            setControlPoint(index, point) {
+                const { x, y, z, w } = point;
+                const dest = this._controlPoints[this._checkControlPointIndex(index)];
+                dest.x = x;
+                dest.y = y;
+                dest.z = z;
+                dest.w = w;
+            }
+            _setControlPoints(controlPoints) {
+                copyArray(this._controlPoints, controlPoints.map(({ x, y, z, w }) => ({ x, y, z, w })));
+            }
+            setControlPoints(controlPoints) {
+                if (controlPoints.length >= this._knots.length) {
+                    throw new Error(`a curve with ${this._knots.length} knots can have at most ` +
+                        `${this._knots.length - 1} control points (${controlPoints.length} ` +
+                        `were provided)`);
+                }
+                this._setControlPoints(controlPoints);
+            }
+            reset(knots, controlPoints) {
+                if (controlPoints.length >= knots.length) {
+                    throw new Error(`the number of knots must be greater than the number of control ` +
+                        `points`);
+                }
+                this._setKnots(knots);
+                this._setControlPoints(controlPoints);
+            }
+            createDeBoorContext() {
+                return new NURBS.DeBoorContext(this._knots, this._multiplicity, this._controlPoints);
+            }
+            _getK(u) {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                let k0 = p;
+                let k1 = m - p + 1;
+                while (k1 > k0) {
+                    const k = (k0 + k1) >>> 1;
+                    if (u < this._knots[k]) {
+                        k1 = k;
+                    }
+                    else if (u > this._knots[k]) {
+                        if (u < this._knots[k + 1]) {
+                            return k;
+                        }
+                        else {
+                            k0 = k + 1;
+                        }
+                    }
+                    else {
+                        return k;
+                    }
+                }
+                if (u >= this._knots[k0] && u < this._knots[k0 + 1]) {
+                    return k0;
+                }
+                else {
+                    return -1;
+                }
+            }
+            get domain() {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                return [this._knots[p], this._knots[m - p]];
+            }
+            sample(u) {
+                this._deBoor.reset();
+                const k = this._getK(u);
+                if (k < 0) {
+                    return null;
+                }
+                const { x, y, z, w } = this._deBoor.run(k, u);
+                return {
+                    x: x / w,
+                    y: y / w,
+                    z: z / w,
+                };
+            }
+            [Symbol.iterator]() {
+                return new CurveIterator(this._knots, this._multiplicity, this._controlPoints, this.resolution);
+            }
+            renderCurve(context) {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                const min = this._knots[p];
+                const max = this._knots[m - p];
+                this._deBoor.reset();
+                let k = p;
+                while (min >= this._knots[k + 1]) {
+                    k++;
+                }
+                {
+                    const { x, y, z, w } = this._deBoor.run(k, min);
+                    context.first(x / w, y / w, z / w);
+                }
+                for (let i = 1; i <= this.resolution; i++) {
+                    const u = min + i * (max - min) / this.resolution;
+                    while (u >= this._knots[k + 1]) {
+                        k++;
+                    }
+                    const { x, y, z, w } = this._deBoor.run(k, u);
+                    context.next(x / w, y / w, z / w);
+                }
+                context.end();
+            }
+            renderPolyLine(context) {
+                {
+                    const { x, y, z, w } = this._controlPoints[0];
+                    context.first(x, y, z, w);
+                }
+                for (let i = 1; i < this._controlPoints.length; i++) {
+                    const { x, y, z, w } = this._controlPoints[i];
+                    context.next(x, y, z, w);
+                }
+                context.end();
+            }
+            clone() {
+                return new Curve(this._knots, this._controlPoints);
+            }
+            transform(matrix) {
+                const m = matrix;
+                for (let i = 0; i < this._controlPoints.length; i++) {
+                    const point = this._controlPoints[i];
+                    const { x, y, z } = point;
+                    point.x = m[0] * x + m[1] * y + m[2] * z;
+                    point.y = m[3] * x + m[4] * y + m[5] * z;
+                    point.z = m[6] * x + m[7] * y + m[8] * z;
+                }
+            }
+            translate(dx, dy, dz) {
+                for (let i = 0; i < this._controlPoints.length; i++) {
+                    const point = this._controlPoints[i];
+                    point.x += dx;
+                    point.y += dy;
+                    point.z += dz;
+                }
+            }
+            derive() {
+                const m = this._knots.length - 1;
+                const n = this._controlPoints.length - 1;
+                const p = m - n - 1;
+                const controlPoints = Array(n);
+                for (let i = 1; i < this._controlPoints.length; i++) {
+                    const a = p / (this._knots[i + p] - this._knots[i]);
+                    const { x: x0, y: y0, z: z0, w: w0 } = this._controlPoints[i - 1];
+                    const { x: x1, y: y1, z: z1, w: w1 } = this._controlPoints[i];
+                    controlPoints[i - 1] = {
+                        x: a * (x1 - x0),
+                        y: a * (y1 - y0),
+                        z: a * (z1 - z0),
+                        w: a * (w1 - w0),
+                    };
+                }
+                return new Curve(this._knots.slice(1, this._knots.length - 1), controlPoints);
+            }
+        }
+        NURBS.Curve = Curve;
+    })(NURBS = Darblast.NURBS || (Darblast.NURBS = {})); // namespace NURBS
+})(Darblast || (Darblast = {})); // namespace Darblast
+const Curve = Darblast.NURBS.Curve;
+/// <reference path="../Base.ts" />
+/// <reference path="DeBoor.ts"/>
+var Darblast;
+(function (Darblast) {
+    let NURBS;
+    (function (NURBS) {
+        class SurfaceSamplingContext {
+            constructor(knots, multiplicity, controlPoints) {
+                this._knots = knots;
+                this._multiplicity = multiplicity;
+                this._controlPoints = controlPoints;
+                this.reset();
+            }
+            reset() {
+                const v = this._controlPoints.map(controlPoints => new NURBS.DeBoorContext(this._knots.v, this._multiplicity.v, controlPoints));
+                const u = new NURBS.DeBoorContext(this._knots.u, this._multiplicity.u, v);
+                this._deBoor = { u, v };
+            }
+            run(c, d, u, v) {
+                for (let i = 0; i < this._deBoor.v.length; i++) {
+                    this._deBoor.v[i].run(d, v);
+                }
+                this._deBoor.u.run(c, u);
+                return this;
+            }
+            get x() {
+                return this._deBoor.u.x;
+            }
+            get y() {
+                return this._deBoor.u.y;
+            }
+            get z() {
+                return this._deBoor.u.z;
+            }
+            get w() {
+                return this._deBoor.u.w;
+            }
+        }
+        class Surface {
+            constructor(u, v, controlPoints) {
+                this._knots = {
+                    u: [],
+                    v: [],
+                };
+                this._multiplicity = {
+                    u: [],
+                    v: [],
+                };
+                this._controlPoints = [];
+                this.resolution = {
+                    u: 100,
+                    v: 100,
+                };
+                this.reset(u, v, controlPoints);
+            }
+            get knotCount() {
+                return {
+                    u: this._knots.u.length,
+                    v: this._knots.v.length,
+                };
+            }
+            get degree() {
+                // h = m + pu + 1
+                // k = n + pv + 1
+                const h = this._knots.u.length - 1;
+                const m = this._controlPoints.length - 1;
+                const k = this._knots.v.length - 1;
+                const n = this._controlPoints[0].length - 1;
+                return {
+                    u: h - m - 1,
+                    v: k - n - 1,
+                };
+            }
+            get domain() {
+                const h = this._knots.u.length - 1;
+                const m = this._controlPoints.length - 1;
+                const pu = h - m - 1;
+                const k = this._knots.v.length - 1;
+                const n = this._controlPoints[0].length - 1;
+                const pv = k - n - 1;
+                return {
+                    u: [this._knots.u[pu], this._knots.u[h - pu]],
+                    v: [this._knots.v[pv], this._knots.v[k - pv]],
+                };
+            }
+            _isStrict(degree, multiplicity) {
+                const p = degree + 1;
+                if (multiplicity.length < p * 2) {
+                    return false;
+                }
+                else {
+                    const m = multiplicity.length - 1;
+                    for (let i = 0; i < p; i++) {
+                        if (multiplicity[i] !== p ||
+                            multiplicity[m - p] !== p) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            isStrict() {
+                const h = this._knots.u.length - 1;
+                const m = this._controlPoints.length - 1;
+                const k = this._knots.v.length - 1;
+                const n = this._controlPoints[0].length - 1;
+                return {
+                    u: this._isStrict(h - m - 1, this._multiplicity.u),
+                    v: this._isStrict(k - n - 1, this._multiplicity.v),
+                };
+            }
+            static _checkKnotIndex(knots, index) {
+                if (index >= 0 && index < knots.length) {
+                    return index;
+                }
+                else {
+                    throw new Error(`index ${index} out of bounds [0, ${knots.length})`);
+                }
+            }
+            getUKnot(index) {
+                return this._knots.u[Surface._checkKnotIndex(this._knots.u, index)];
+            }
+            getVKnot(index) {
+                return this._knots.v[Surface._checkKnotIndex(this._knots.v, index)];
+            }
+            getUKnots() {
+                return this._knots.u.slice();
+            }
+            getVKnots() {
+                return this._knots.v.slice();
+            }
+            getKnots() {
+                return {
+                    u: this._knots.u.slice(),
+                    v: this._knots.v.slice(),
+                };
+            }
+            static _sanitizeKnots(knots) {
+                const result = {
+                    knots: [],
+                    multiplicity: [],
+                };
+                const min = Math.min.apply(Math, knots);
+                const max = Math.max.apply(Math, knots);
+                copyArray(result.knots, knots.map(u => (u - min) / (max - min)).sort((u, v) => u - v));
+                copyArray(result.multiplicity, result.knots.map(() => 1));
+                for (let i = 1, j = 0; i < result.knots.length; i++) {
+                    if (result.knots[i] > result.knots[i - 1]) {
+                        for (let k = j; k < i; k++) {
+                            result.multiplicity[k] = i - j;
+                        }
+                        j = i;
+                    }
+                }
+                return result;
+            }
+            setUKnot(index, value) {
+                this._knots.u[Surface._checkKnotIndex(this._knots.u, index)] = value;
+            }
+            setVKnot(index, value) {
+                this._knots.v[Surface._checkKnotIndex(this._knots.v, index)] = value;
+            }
+            setUKnots(knots) {
+                const m = this._controlPoints.length;
+                if (knots.length <= m) {
+                    throw new Error(`a surface with ${m} control point rows must have at least ${m + 1} ` +
+                        `U knots (${knots.length} were provided)`);
+                }
+                const { knots: sortedKnots, multiplicity } = Surface._sanitizeKnots(knots);
+                this._knots.u = sortedKnots;
+                this._multiplicity.u = multiplicity;
+            }
+            setVKnots(knots) {
+                const n = this._controlPoints[0].length;
+                if (knots.length <= n) {
+                    throw new Error(`a surface with ${n} control point columns must have at least ` +
+                        `${n + 1} V knots (${knots.length} were provided)`);
+                }
+                const { knots: sortedKnots, multiplicity } = Surface._sanitizeKnots(knots);
+                this._knots.v = sortedKnots;
+                this._multiplicity.v = multiplicity;
+            }
+            setKnots(u, v) {
+                this.setUKnots(u);
+                this.setVKnots(v);
+            }
+            _checkControlPointIndex(i, j) {
+                if (i < 0 || i >= this._controlPoints.length) {
+                    throw new Error(`index ${i} out of bounds [0, ${this._controlPoints.length})`);
+                }
+                if (j < 0 || j >= this._controlPoints[0].length) {
+                    throw new Error(`index ${j} out of bounds [0, ${this._controlPoints[0].length})`);
+                }
+            }
+            getControlPoint(i, j) {
+                this._checkControlPointIndex(i, j);
+                const { x, y, z, w } = this._controlPoints[i][j];
+                return { x, y, z, w };
+            }
+            getControlPoints() {
+                return this._controlPoints.map(row => row.map(({ x, y, z, w }) => ({ x, y, z, w })));
+            }
+            setControlPoint(i, j, point) {
+                this._checkControlPointIndex(i, j);
+                const { x, y, z, w } = point;
+                const dest = this._controlPoints[i][j];
+                dest.x = x;
+                dest.y = y;
+                dest.z = z;
+                dest.w = w;
+            }
+            static _checkParameters(knots, controlPoints) {
+                if (controlPoints.length < 1) {
+                    throw new Error('there must be at least 1 control point row');
+                }
+                controlPoints.forEach(row => {
+                    if (row.length < 1) {
+                        throw new Error('there must be at least 1 control point column');
+                    }
+                });
+                const h = knots.u.length;
+                const m = controlPoints.length;
+                const k = knots.v.length;
+                const n = controlPoints[0].length;
+                for (let i = 0; i < m; i++) {
+                    if (controlPoints[i].length !== n) {
+                        throw new Error(`inconsistent number of columns in control point grid: ` +
+                            `${JSON.stringify(controlPoints.map(row => row.length))}`);
+                    }
+                }
+                if (m >= h) {
+                    throw new Error(`a surface with ${h} U knots can have at most ${h - 1} control ` +
+                        `point rows (${m} were provided)`);
+                }
+                if (n >= k) {
+                    throw new Error(`a surface with ${k} V knots can have at most ${k - 1} control ` +
+                        `point columns (${n} were provided)`);
+                }
+            }
+            setControlPoints(controlPoints) {
+                Surface._checkParameters(this._knots, controlPoints);
+                this._controlPoints = controlPoints.map(row => row.map(({ x, y, z, w }) => ({ x, y, z, w })));
+            }
+            reset(u, v, controlPoints) {
+                Surface._checkParameters({ u, v }, controlPoints);
+                let result = Surface._sanitizeKnots(u);
+                this._knots.u = result.knots;
+                this._multiplicity.u = result.multiplicity;
+                result = Surface._sanitizeKnots(v);
+                this._knots.v = result.knots;
+                this._multiplicity.v = result.multiplicity;
+                this._controlPoints = controlPoints.map(row => row.map(({ x, y, z, w }) => ({ x, y, z, w })));
+                this._sampler = new SurfaceSamplingContext(this._knots, this._multiplicity, this._controlPoints);
+            }
+            _getK(knots, degree, u) {
+                const m = knots.length - 1;
+                let k0 = degree;
+                let k1 = m - degree + 1;
+                while (k1 > k0) {
+                    const k = (k0 + k1) >>> 1;
+                    if (u < knots[k]) {
+                        k1 = k;
+                    }
+                    else if (u > knots[k]) {
+                        if (u < knots[k + 1]) {
+                            return k;
+                        }
+                        else {
+                            k0 = k + 1;
+                        }
+                    }
+                    else {
+                        return k;
+                    }
+                }
+                if (u >= knots[k0] && u < knots[k0 + 1]) {
+                    return k0;
+                }
+                else {
+                    return -1;
+                }
+            }
+            _getC(u) {
+                const h = this._knots.u.length - 1;
+                const m = this._controlPoints.length - 1;
+                return this._getK(this._knots.u, h - m - 1, u);
+            }
+            _getD(v) {
+                const k = this._knots.v.length - 1;
+                const n = this._controlPoints[0].length - 1;
+                return this._getK(this._knots.v, k - n - 1, v);
+            }
+            sample(u, v) {
+                const c = this._getC(u);
+                const d = this._getD(v);
+                this._sampler.reset();
+                this._sampler.run(c, d, u, v);
+                const { x, y, z } = this._sampler;
+                return { x, y, z };
+            }
+            iterate(context) {
+                const h = this._knots.u.length - 1;
+                const m = this._controlPoints.length - 1;
+                const pu = h - m - 1;
+                const k = this._knots.v.length - 1;
+                const n = this._controlPoints[0].length - 1;
+                const pv = k - n - 1;
+                const minU = this._knots.u[pu];
+                const maxU = this._knots.u[h - pu];
+                const minV = this._knots.v[pv];
+                const maxV = this._knots.v[k - pv];
+                this._sampler.reset();
+                let c = pu;
+                while (minU >= this._knots.u[c + 1]) {
+                    c++;
+                }
+                for (let i = 0; i <= this.resolution.u; i++) {
+                    const u = minU + i * (maxU - minU) / this.resolution.u;
+                    while (u >= this._knots.u[c + 1]) {
+                        c++;
+                    }
+                    context.startRow();
+                    let d = pv;
+                    while (minV >= this._knots.v[d + 1]) {
+                        d++;
+                    }
+                    for (let j = 0; j < this.resolution.v; j++) {
+                        const v = minV + j * (maxV - minV) / this.resolution.v;
+                        while (v >= this._knots.v[d + 1]) {
+                            d++;
+                        }
+                        const { x, y, z, w } = this._sampler.run(c, d, u, v);
+                        context.point(x / w, y / w, z / w);
+                    }
+                }
+                context.end();
+            }
+            clone() {
+                return new Surface(this._knots.u, this._knots.v, this._controlPoints);
+            }
+            transform(matrix) {
+                const m = matrix;
+                for (let i = 0; i < this._controlPoints.length; i++) {
+                    for (let j = 0; j < this._controlPoints[i].length; j++) {
+                        const point = this._controlPoints[i][j];
+                        const { x, y, z } = point;
+                        point.x = m[0] * x + m[1] * y + m[2] * z;
+                        point.y = m[3] * x + m[4] * y + m[5] * z;
+                        point.z = m[6] * x + m[7] * y + m[8] * z;
+                    }
+                }
+            }
+            translate(dx, dy, dz) {
+                for (let i = 0; i < this._controlPoints.length; i++) {
+                    for (let j = 0; j < this._controlPoints[i].length; j++) {
+                        const point = this._controlPoints[i][j];
+                        point.x += dx;
+                        point.y += dy;
+                        point.z += dz;
+                    }
+                }
+            }
+        }
+        NURBS.Surface = Surface;
+    })(NURBS = Darblast.NURBS || (Darblast.NURBS = {})); // namespace NURBS
+})(Darblast || (Darblast = {})); // namespace Darblast
+const Surface = Darblast.NURBS.Surface;
 
 return Darblast;
 }));
