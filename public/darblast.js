@@ -1917,7 +1917,7 @@ var Darblast;
                 const m = this._knots.length - 1;
                 const n = this._controlPoints.length - 1;
                 const p = m - n - 1;
-                const s = u > this._knots[k] ? 0 : this._multiplicity[k];
+                const s = u > this._knots[k] ? 0 : Math.min(p, this._multiplicity[k]);
                 const h = p - s;
                 for (let i = k - s; i >= k - p; i--) {
                     const { x, y, z, w } = this._controlPoints[i];
@@ -1977,10 +1977,11 @@ var Darblast;
                 this._i = 0;
             }
             _step() {
+                const n = this._controlPoints.length - 1;
                 const min = this._min;
                 const max = this._max;
                 const u = min + this._i++ * (max - min) / this._resolution;
-                while (u >= this._knots[this._k + 1]) {
+                while (this._k < n && u >= this._knots[this._k + 1]) {
                     this._k++;
                 }
                 return u;
@@ -2079,8 +2080,8 @@ var Darblast;
                 const max = Math.max.apply(Math, knots);
                 copyArray(this._knots, knots.map(u => (u - min) / (max - min)).sort((u, v) => u - v));
                 copyArray(this._multiplicity, this._knots.map(() => 1));
-                for (let i = 1, j = 0; i < this._knots.length; i++) {
-                    if (this._knots[i] > this._knots[i - 1]) {
+                for (let i = 1, j = 0; i <= this._knots.length; i++) {
+                    if (i > this._knots.length - 1 || this._knots[i] > this._knots[i - 1]) {
                         for (let k = j; k < i; k++) {
                             this._multiplicity[k] = i - j;
                         }
@@ -2186,7 +2187,7 @@ var Darblast;
                 const max = this._knots[m - p];
                 this._deBoor.reset();
                 let k = p;
-                while (min >= this._knots[k + 1]) {
+                while (k < n && min >= this._knots[k + 1]) {
                     k++;
                 }
                 {
@@ -2195,7 +2196,7 @@ var Darblast;
                 }
                 for (let i = 1; i <= this.resolution; i++) {
                     const u = min + i * (max - min) / this.resolution;
-                    while (u >= this._knots[k + 1]) {
+                    while (k < n && u >= this._knots[k + 1]) {
                         k++;
                     }
                     const { x, y, z, w } = this._deBoor.run(k, u);
@@ -2404,8 +2405,9 @@ var Darblast;
                 const max = Math.max.apply(Math, knots);
                 copyArray(result.knots, knots.map(u => (u - min) / (max - min)).sort((u, v) => u - v));
                 copyArray(result.multiplicity, result.knots.map(() => 1));
-                for (let i = 1, j = 0; i < result.knots.length; i++) {
-                    if (result.knots[i] > result.knots[i - 1]) {
+                for (let i = 1, j = 0; i <= result.knots.length; i++) {
+                    if (i > result.knots.length - 1 ||
+                        result.knots[i] > result.knots[i - 1]) {
                         for (let k = j; k < i; k++) {
                             result.multiplicity[k] = i - j;
                         }
@@ -2571,22 +2573,22 @@ var Darblast;
                 const maxV = this._knots.v[k - pv];
                 this._sampler.reset();
                 let c = pu;
-                while (minU >= this._knots.u[c + 1]) {
+                while (c < m && minU >= this._knots.u[c + 1]) {
                     c++;
                 }
                 for (let i = 0; i <= this.resolution.u; i++) {
                     const u = minU + i * (maxU - minU) / this.resolution.u;
-                    while (u >= this._knots.u[c + 1]) {
+                    while (c < m && u >= this._knots.u[c + 1]) {
                         c++;
                     }
                     context.startRow();
                     let d = pv;
-                    while (minV >= this._knots.v[d + 1]) {
+                    while (d < n && minV >= this._knots.v[d + 1]) {
                         d++;
                     }
-                    for (let j = 0; j < this.resolution.v; j++) {
+                    for (let j = 0; j <= this.resolution.v; j++) {
                         const v = minV + j * (maxV - minV) / this.resolution.v;
-                        while (v >= this._knots.v[d + 1]) {
+                        while (d < n && v >= this._knots.v[d + 1]) {
                             d++;
                         }
                         const { x, y, z, w } = this._sampler.run(c, d, u, v);
